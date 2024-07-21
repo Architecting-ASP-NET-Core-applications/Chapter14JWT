@@ -1,0 +1,37 @@
+﻿@page "/"
+
+<button @onclick="ShowLoginDialog">Show Login Dialog</button>
+<p>
+    Username: @username
+</p>
+<p>
+    Password: @pwd
+</p>
+
+<LoginDialog IsVisible="@isLoginDialogVisible" OnClose="HandleLoginDialogClose" OnLogin="OnLoginCallback" />
+
+
+
+
+@code {
+    string username = string.Empty;
+    string pwd = string.Empty;
+
+    private bool isLoginDialogVisible = false;
+
+    private void ShowLoginDialog()
+    {
+        isLoginDialogVisible = true;
+    }
+
+    private void HandleLoginDialogClose(bool isVisible)
+    {
+        isLoginDialogVisible = isVisible;
+    }
+
+    private void OnLoginCallback((string a, string b) par)
+    {
+        username = par.a;
+        pwd = par.b;
+    }
+}
