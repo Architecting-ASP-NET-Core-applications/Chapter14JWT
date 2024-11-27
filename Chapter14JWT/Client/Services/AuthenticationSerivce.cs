@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text;
 using Microsoft.JSInterop;
+using Chapter14JWT.Shared.Models;
 
 namespace Chapter14JWT.Client.Services;
 
@@ -36,47 +37,43 @@ public class AuthenticationService : IAuthenticationService
         var content = JsonSerializer.Serialize(userForAuthentication);
         var bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
 
-        JsonContent content2 = JsonContent.Create(new UserForAuthenticationDto() { Username = $"{userForAuthentication.Username}", Password = $"{userForAuthentication.Password}" });
+        JsonContent userContent = JsonContent.Create(new UserForAuthenticationDto() { Username = $"{userForAuthentication.Username}", Password = $"{userForAuthentication.Password}" });
 
-        var authResult = await client.PostAsync("api/v1/login", content2);
-
-        if (authResult.StatusCode is not System.Net.HttpStatusCode.OK)
+        try
         {
-            ret = new AuthenticationResponseDto()
+            var authResult = await client.PostAsync("https://localhost:7093/api/v1/login", userContent);
+
+            if (authResult.StatusCode is not System.Net.HttpStatusCode.OK)
             {
-                StatusCode = authResult.StatusCode
-            };
-        }
-        else
-        {
-            try
-            {
-                authContent = await authResult.Content.ReadAsStringAsync();
-                result = JsonSerializer.Deserialize<AuthenticationResponseDto>(authContent, options);
-
-                if (!authResult.IsSuccessStatusCode)
-                    return result;
-
-                //await localStorage.SetItemAsync("authToken", result.Token);
-                //await localStorage.SetItemAsync("refreshToken", result.RefreshToken);
-                authStateProvider.NotifyUserAuthentication(result.Token);
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.Token);
-
-                // Here parse the JWT from machine
-                var claims = JwtParser.ParseClaimsFromJwt(result.Token);
-
-                ret = new AuthenticationResponseDto
+                ret = new AuthenticationResponseDto()
                 {
-                    IsAuthenticationSuccessful = true,
-                    StatusCode = System.Net.HttpStatusCode.OK
+                    StatusCode = authResult.StatusCode
                 };
-
             }
-            catch (Exception ex)
+            else
             {
-                string message = ex.Message;
-                if (message != null) { }
+                try
+                {
+                    authContent = await authResult.Content.ReadAsStringAsync();
+                    result = JsonSerializer.Deserialize<AuthenticationResponseDto>(authContent, options);
+
+                    if (!authResult.IsSuccessStatusCode)
+                        return result;
+                    authStateProvider.NotifyUserAuthentication(result.Token);
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.Token);
+                    ret.Token = result.Token;
+                }
+                catch (Exception ex)
+                {
+                    string message = ex.Message;
+                    if (message != null) { }
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            var s = ex.Message;
+            
         }
         return ret;
     }
@@ -93,29 +90,7 @@ public class AuthenticationService : IAuthenticationService
         authStateProvider.NotifyUserLogout();
         client.DefaultRequestHeaders.Authorization = null;
     }
-    
-    public async Task<string> RefreshToken()
-    {        
-        var token = await js.InvokeAsync<string> ("authToken");
-        var refreshToken = await js.InvokeAsync<string>("refreshToken");
-
-        var tokenDto = JsonSerializer.Serialize(new RefreshToken { Token = token, RefreshActualToken = refreshToken });
-        var bodyContent = new StringContent(tokenDto, Encoding.UTF8, "application/json");
-
-        var refreshResult = await client.PostAsync("token/refresh", bodyContent);
-        var refreshContent = await refreshResult.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<AuthenticationResponseDto>(refreshContent, options);
-
-        if (!refreshResult.IsSuccessStatusCode)
-        { throw new AuthenticationException("Something went wrong during the refresh token action"); }
-
-        await js.InvokeVoidAsync("authToken", result.Token);
-        await js.InvokeVoidAsync("refreshToken", result.RefreshToken);
-
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("bearer", result.Token);
-        return result.Token;
-    }
-    
+        
     public IEnumerable<Claim> ParseClaimsFromJwt(string jwt)
     {
         var claims = new List<Claim>();
@@ -157,11 +132,6 @@ public class AuthenticationService : IAuthenticationService
                 break;
         }
         return Convert.FromBase64String(base64);
-    }
-
-    public Task<RegistrationResponseDto> RegisterUser(UserForRegistrationDto userForRegistration)
-    {
-        throw new NotImplementedException();
     }
 
 }

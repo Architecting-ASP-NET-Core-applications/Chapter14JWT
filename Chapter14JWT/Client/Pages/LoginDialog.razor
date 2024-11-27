@@ -40,10 +40,8 @@
 
     private void ConfirmLogin()
     {
-        Console.WriteLine($"Tentativo di login con username: {Username} e password: {Password}");
         IsVisible = false;
         OnClose.InvokeAsync(IsVisible);
         OnLogin.InvokeAsync((Username, Password));
-        OnClose.InvokeAsync(IsVisible);
     }
 }

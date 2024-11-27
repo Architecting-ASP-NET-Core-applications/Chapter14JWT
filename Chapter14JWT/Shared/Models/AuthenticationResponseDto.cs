@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Chapter14JWT.Client.Models;
+namespace Chapter14JWT.Shared.Models;
 
 public class AuthenticationResponseDto
 {

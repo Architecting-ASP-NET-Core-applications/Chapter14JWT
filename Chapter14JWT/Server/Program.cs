@@ -1,3 +1,6 @@
+using Chapter14JWT.Server.Controllers;
+using Chapter14JWT.Server.Models;
+using Chapter14JWT.Shared.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.IdentityModel.Tokens;
@@ -5,12 +8,11 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Key"]);
-
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+// JWT
+var jwtSettings = builder.Configuration.GetSection("JWTSettings");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -27,15 +29,19 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(key)
+        ValidIssuer = jwtSettings["validIssuer"],
+        ValidAudience = jwtSettings["validAudience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["securityKey"]))
     };
 });
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddScoped<ITokenService, TokenService>();
+
 var app = builder.Build();
+
+app.AddLoginController();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
